@@ -103,7 +103,16 @@ class Repository(
             val response = block()
             if (response.isSuccessful) {
                 val body = response.body()
-                if (body != null) ApiResult.Ok(body) else ApiResult.Err("Resposta vazia do servidor.", response.code())
+                when {
+                    body != null -> ApiResult.Ok(body)
+                    // 204/205 (sem corpo) é sucesso: a API responde assim em excluir evento e cancelar inscrição.
+                    // Só é usado com Response<Unit>, então o cast é seguro.
+                    response.code() == 204 || response.code() == 205 -> {
+                        @Suppress("UNCHECKED_CAST")
+                        ApiResult.Ok(Unit as T)
+                    }
+                    else -> ApiResult.Err("Resposta vazia do servidor.", response.code())
+                }
             } else {
                 parseError(response)
             }
